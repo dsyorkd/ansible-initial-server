@@ -30,19 +30,19 @@
     when: user_exists is succeeded
 
   # (optional)
-  # - name: Ensure, that members of the sodoers group can do passwordless sudo.
-  #   lineinfile:
-  #     path: /etc/sudoers
-  #     state: present
-  #     regexp: '^%sudo\s'
-  #     line: '%sudo  ALL=(ALL:ALL) NOPASSWD: ALL'
+  - name: Ensure, that members of the sodoers group can do passwordless sudo.
+    lineinfile:
+      path: /etc/sudoers
+      state: present
+      regexp: '^%sudo\s'
+      line: '%sudo  ALL=(ALL:ALL) NOPASSWD: ALL'
 
-  # - name: Modify the default user, appending the group 'sudo' to the user's groups
-  #   user:
-  #     name: "{{ iserver_user }}"
-  #     groups: sudo
-  #     append: yes
-  #   when: user_exists is succeeded
+  - name: Modify the default user, appending the group 'sudo' to the user's groups
+    user:
+      name: "{{ iserver_user }}"
+      groups: sudo
+      append: yes
+    when: user_exists is succeeded
 
   ## End of block KICKSTART
   become: true
@@ -89,6 +89,14 @@
       cache_valid_time: 86400 #One day
     tags:
       - vanilla
+  - name: Remove existing Docker packages
+    apt: name={{ item }} state=absent
+    loop: ['docker', 'docker-engine', 'docker.io', 'containerd', 'runc']
+  
+  - name: Add Docker GPG apt key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
 
   - name: Ensure that initial packages are installed.
     apt:
