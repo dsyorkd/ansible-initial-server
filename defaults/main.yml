@@ -9,7 +9,7 @@ iserver_become: sudo ## do not chanage this ##
 
 ### BASE PACKAGES ###
 iserver_repos:
-  - undefined
+   - undefined
   ## Debian 10 buster example
   # - deb http://repo.myloc.de/debian buster main non-free contrib
   # - deb-src http://repo.myloc.de/debian buster main non-free contrib
@@ -59,7 +59,7 @@ iserver_host_main_ip: 127.1.1.1
 # - or use a fixed routed external IP for servers
 # - which will also go into and 'interfaces' or 'netplan'
 iserver_ip: 127.0.1.1
-iserver_nameservers: 1.1.1.1,1.0.0.1
+iserver_nameservers: 10.100.1.200
 
 ### SSH ###
 iserver_ssh_port: 22

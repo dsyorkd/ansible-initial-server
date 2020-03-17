@@ -1,5 +1,5 @@
 galaxy_info:
-  author: Christian Wagner
+  author: Spencer York
   description: Initial configuration of a freshly installed Debian server to be used as a template in KVM.
   license: MIT
   min_ansible_version: 2.6

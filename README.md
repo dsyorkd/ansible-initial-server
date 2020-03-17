@@ -19,7 +19,7 @@ Also tested with a default install of Ubuntu 18.04 server ISO
 - Default user `deploy` (customizable)
 - Partitions: 1 primary ext4 root partition /dev/sda1 (no swap); Grub on MBR
 - an auto-install http/preseed.cfg can be used to speed-up the initial install
-- used by [packer-proxmox-templates](https://github.com/chriswayg/packer-proxmox-templates)
+- used by [packer-proxmox-templates](https://github.com/dsyorkd/packer-proxmox-templates)
 
 ### Configuration features
 - qemu-guest-agent for Packer SSH and in Proxmox for shutdown and backups
@@ -112,5 +112,5 @@ MIT
 
 Author Information
 ------------------
-
+Credit to most of what is here goes to 
 Christian Wagner
