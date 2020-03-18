@@ -37,12 +37,12 @@ iserver_packages:
   - curl
   - psmisc
   - net-tools
-  # - lsof
+  - lsof
   # - lshw
   # - ncdu
   # - netstat-nat
-  # - dnsutils
-  # - pv
+  - dnsutils
+  - pv
   # - screen
 
 ### NETWORKING ###
