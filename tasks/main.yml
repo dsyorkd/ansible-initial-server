@@ -81,7 +81,14 @@
       content: "# Ansible managed # active repos are in /etc/apt/sources.list.d/*"
       dest: /etc/apt/sources.list
       force: no
+      
+  # add docker gpg key     
+  - name: Add Docker GPG apt key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
 
+  # update default packages 
   - name: Ensure, that all packages are updated and upgraded.
     apt:
       upgrade: "yes"
@@ -89,15 +96,13 @@
       cache_valid_time: 86400 #One day
     tags:
       - vanilla
+
+  # cleanup existing docker installation
   - name: Remove existing Docker packages
     apt: name={{ item }} state=absent
     loop: ['docker', 'docker-engine', 'docker.io', 'containerd', 'runc']
-  
-  - name: Add Docker GPG apt key
-    apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
-      state: present
-
+   
+  # install base packages
   - name: Ensure that initial packages are installed.
     apt:
       name: "{{ iserver_packages }}"
