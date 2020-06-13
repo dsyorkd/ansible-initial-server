@@ -64,6 +64,10 @@
     apt_key:
       url: https://download.docker.com/linux/ubuntu/gpg
       state: present
+  - name: Add Ceph Apt Key
+    apt_key:
+      url: https//downloads.ceph.com/keys/release.asc
+      state: present
       
   # replaces sources.list repos, if iserver_repos has repos defined.
   - name: Move original /etc/apt/sources.list to back it up (once).
