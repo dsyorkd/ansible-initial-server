@@ -4,9 +4,9 @@ galaxy_info:
   license: MIT
   min_ansible_version: 2.6
   platforms:
-  - name: Debian
+  - name: Ubuntu
     versions:
-    - stretch
+    - bionic
     - buster
 
   galaxy_tags: []
