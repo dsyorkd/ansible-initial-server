@@ -59,7 +59,7 @@ iserver_host_main_ip: 127.1.1.1
 # - or use a fixed routed external IP for servers
 # - which will also go into and 'interfaces' or 'netplan'
 iserver_ip: 127.0.1.1
-iserver_nameservers: 10.100.1.200
+iserver_nameservers: 1.1.1.1,8.8.8.8
 
 ### SSH ###
 iserver_ssh_port: 22
