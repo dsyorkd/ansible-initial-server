@@ -6,43 +6,43 @@
 # For this block we use 'su' on first-run, because root cannot ssh into the server.
 - name: KICKSTART
   block:
-  - name: Ensure that python-apt and sudo is installed.
-    apt:
-      name: "{{ packages }}"
-      state: present
-    vars:
-      packages:
-      - python-apt
-      - sudo
+    - name: Ensure that python-apt and sudo is installed.
+      apt:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - python-apt
+          - sudo
 
-  ### SUDOERS ###
-  - name: Check if iserver_user exists.
-    shell: id -u "{{ iserver_user }}" > /dev/null 2>&1
-    ignore_errors: True
-    changed_when: false
-    register: user_exists
+    ### SUDOERS ###
+    - name: Check if iserver_user exists.
+      shell: id -u "{{ iserver_user }}" > /dev/null 2>&1
+      ignore_errors: True
+      changed_when: false
+      register: user_exists
 
-  - name: Add the default user with passwordless sudo to sodoers.d
-    template:
-      src: default-user.j2
-      dest: /etc/sudoers.d/default-user
-      mode: 0440
-    when: user_exists is succeeded
+    - name: Add the default user with passwordless sudo to sudoers.d
+      template:
+        src: default-user.j2
+        dest: /etc/sudoers.d/default-user
+        mode: 0440
+      when: user_exists is succeeded
 
-  # (optional)
-  - name: Ensure, that members of the sodoers group can do passwordless sudo.
-    lineinfile:
-      path: /etc/sudoers
-      state: present
-      regexp: '^%sudo\s'
-      line: '%sudo  ALL=(ALL:ALL) NOPASSWD: ALL'
+    # (optional)
+    - name: Ensure, that members of the sodoers group can do passwordless sudo.
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo\s'
+        line: "%sudo  ALL=(ALL:ALL) NOPASSWD: ALL"
 
-  - name: Modify the default user, appending the group 'sudo' to the user's groups
-    user:
-      name: "{{ iserver_user }}"
-      groups: sudo
-      append: yes
-    when: user_exists is succeeded
+    - name: Modify the default user, appending the group 'sudo' to the user's groups
+      user:
+        name: "{{ iserver_user }}"
+        groups: sudo
+        append: yes
+      when: user_exists is succeeded
 
   ## End of block KICKSTART
   become: true
@@ -53,334 +53,330 @@
 ## Now that the default user can do passwordless sudo, run the rest with sudo.
 - name: MAIN
   block:
-  - name: Reset SSH connection to allow user changes to affect 'current login user'.
-    meta: reset_connection
-    tags:
-      - vanilla
+    - name: Reset SSH connection to allow user changes to affect 'current login user'.
+      meta: reset_connection
+      tags:
+        - vanilla
 
-  ### BASE PACKAGES ###
-    # add docker gpg key     
-  - name: Add Docker GPG apt key
-    apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
-      state: present
-  - name: Add Ceph Apt Key
-    apt_key:
-      url: https://mirrors.aliyun.com/ceph/keys/release.asc
-      state: present
-      
-  # replaces sources.list repos, if iserver_repos has repos defined.
-  - name: Move original /etc/apt/sources.list to back it up (once).
-    command: mv /etc/apt/sources.list /etc/apt/sources.list.original
-    args:
-      creates: /etc/apt/sources.list.original
-    when: iserver_repos[0] != "undefined"
+    ### BASE PACKAGES ###
+    # add docker gpg key
+    - name: Add Docker GPG apt key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+    - name: Add Ceph Apt Key
+      apt_key:
+        url: https://mirrors.aliyun.com/ceph/keys/release.asc
+        state: present
 
-  # this requires python-apt.
-  # at least two repos need to be defined. repos are added to sources.list.d/
-  - name: Add a set of specified repositories into sources list.
-    apt_repository:
-      repo: "{{ item }}"
-      state: present
-    loop: "{{ iserver_repos }}"
-    when: iserver_repos[0] != "undefined"
+    # replaces sources.list repos, if iserver_repos has repos defined.
+    - name: Move original /etc/apt/sources.list to back it up (once).
+      command: mv /etc/apt/sources.list /etc/apt/sources.list.original
+      args:
+        creates: /etc/apt/sources.list.original
+      when: iserver_repos[0] != "undefined"
 
-  # so that Ubuntu will not complain about missing sources.list
-  - name: Ensure that there is at least a sources.list file placeholder.
-    copy:
-      content: "# Ansible managed # active repos are in /etc/apt/sources.list.d/*"
-      dest: /etc/apt/sources.list
-      force: no
+    # this requires python-apt.
+    # at least two repos need to be defined. repos are added to sources.list.d/
+    - name: Add a set of specified repositories into sources list.
+      apt_repository:
+        repo: "{{ item }}"
+        state: present
+      loop: "{{ iserver_repos }}"
+      when: iserver_repos[0] != "undefined"
 
-  # update default packages 
-  - name: Ensure, that all packages are updated and upgraded.
-    apt:
-      upgrade: "yes"
-      update_cache: yes
-      cache_valid_time: 86400 #One day
-    tags:
-      - vanilla
+    # so that Ubuntu will not complain about missing sources.list
+    - name: Ensure that there is at least a sources.list file placeholder.
+      copy:
+        content: "# Ansible managed # active repos are in /etc/apt/sources.list.d/*"
+        dest: /etc/apt/sources.list
+        force: no
 
-  # cleanup existing docker installation
-  - name: Remove existing Docker packages
-    apt: name={{ item }} state=absent
-    loop: ['docker', 'docker-engine', 'docker.io', 'containerd', 'runc']
-   
-  # install base packages
-  - name: Ensure that initial packages are installed.
-    apt:
-      name: "{{ iserver_packages }}"
-      state: present
+    # update default packages
+    - name: Ensure, that all packages are updated and upgraded.
+      apt:
+        upgrade: "yes"
+        update_cache: yes
+        cache_valid_time: 86400 #One day
+      tags:
+        - vanilla
 
-  ### NETWORKING ###
-  - name: Copy original /etc/issue (once).
-    command: cp /etc/issue /etc/issue.original
-    args:
-      creates: /etc/issue.original
+    # cleanup existing docker installation
+    - name: Remove existing Docker packages
+      apt: name={{ item }} state=absent
+      loop: ["docker", "docker-engine", "docker.io", "containerd", "runc"]
 
-  - name: Set hostname.
-    hostname:
-      name: "{{ iserver_hostname }}"
-    register: restart_systemd_logind
-    tags:
-      - vanilla
+    # install base packages
+    - name: Ensure that initial packages are installed.
+      apt:
+        name: "{{ iserver_packages }}"
+        state: present
 
-  - include_tasks: networking-debian.yml
-    when: ansible_distribution == 'Debian'
+    ### NETWORKING ###
+    - name: Copy original /etc/issue (once).
+      command: cp /etc/issue /etc/issue.original
+      args:
+        creates: /etc/issue.original
 
-  - include_tasks: networking-ubuntu.yml
-    when: ansible_distribution == 'Ubuntu'
+    - name: Set hostname.
+      hostname:
+        name: "{{ iserver_hostname }}"
+      register: restart_systemd_logind
+      tags:
+        - vanilla
 
-  - name: Copy original hosts file to back it up (once).
-    command: cp /etc/hosts /etc/hosts.original
-    args:
-      creates: /etc/hosts.original
-    tags:
-      - vanilla
+    - include_tasks: networking-debian.yml
+      when: ansible_distribution == 'Debian'
 
-  - name: Create new hosts file.
-    template:
-      src: hosts.j2
-      dest: /etc/hosts
-    register: restart_systemd_logind
-    tags:
-      - vanilla
+    - include_tasks: networking-ubuntu.yml
+      when: ansible_distribution == 'Ubuntu'
 
-  - name: Restart systemd-logind.
-    service:
-      name: systemd-logind
-      state: restarted
-    when: restart_systemd_logind is changed
-    tags:
-      - vanilla
+    - name: Copy original hosts file to back it up (once).
+      command: cp /etc/hosts /etc/hosts.original
+      args:
+        creates: /etc/hosts.original
+      tags:
+        - vanilla
 
-  ### SSH ###
-  - name: Ensure, that the default user has an SHH authorized key.
-    authorized_key:
-      user: "{{ iserver_user }}"
-      state: present
-      key: "{{ iserver_sshkey }}"
-    when: user_exists is succeeded
-    tags:
-      - vanilla
+    - name: Create new hosts file.
+      template:
+        src: hosts.j2
+        dest: /etc/hosts
+      register: restart_systemd_logind
+      tags:
+        - vanilla
 
-  #'UseDNS no' avoids login delays when the remote client's DNS cannot be resolved
-  - name: Disallow root SSH access, only allow SSH key login; UseDNS no.
-    lineinfile:
-      path: /etc/ssh/sshd_config
-      state: present
-      regexp: "{{ item.regexp }}"
-      line: "{{ item.line }}"
-    loop:
-      - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
-      - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
-      - { regexp: '^UseDNS', line: 'UseDNS no' }
-      - { regexp: '^Banner', line: 'Banner {{ iserver_ssh_banner }}' }
-      - { regexp: '^Port', line: 'Port {{ iserver_ssh_port }}' }
-    register: restart_ssh
-    tags:
-      - vanilla
+    - name: Restart systemd-logind.
+      service:
+        name: systemd-logind
+        state: restarted
+      when: restart_systemd_logind is changed
+      tags:
+        - vanilla
 
-  - name: Add a warning banner, shown before SSH login.
-    copy:
-      src: issue.net
-      dest: "{{ iserver_ssh_banner }}"
-    when: iserver_ssh_banner != "none"
+    ### SSH ###
+    - name: Ensure, that the default user has an SHH authorized key.
+      authorized_key:
+        user: "{{ iserver_user }}"
+        state: present
+        key: "{{ iserver_sshkey }}"
+      when: user_exists is succeeded
+      tags:
+        - vanilla
 
-  - name: Restart SSH.
-    service:
-      name: ssh
-      state: restarted
-    when: restart_ssh is changed
-    tags:
-      - vanilla
+    #'UseDNS no' avoids login delays when the remote client's DNS cannot be resolved
+    - name: Disallow root SSH access, only allow SSH key login; UseDNS no.
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        state: present
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: "^PermitRootLogin", line: "PermitRootLogin no" }
+        - {
+            regexp: "^PasswordAuthentication",
+            line: "PasswordAuthentication no",
+          }
+        - { regexp: "^UseDNS", line: "UseDNS no" }
+        - { regexp: "^Banner", line: "Banner {{ iserver_ssh_banner }}" }
+        - { regexp: "^Port", line: "Port {{ iserver_ssh_port }}" }
+      register: restart_ssh
+      tags:
+        - vanilla
 
-  # SSH-HOST-KEYGEN (for KVM template)
-  - name: Copy systemd unitfile for OpenSSH Server Key Generation.
-    copy:
-      src: ssh-host-keygen.service
-      dest: /etc/systemd/system/ssh-host-keygen.service
-      mode: 0644
-    register: enable_ssh_host_keygen
-    when: iserver_is_template
+    - name: Add a warning banner, shown before SSH login.
+      copy:
+        src: issue.net
+        dest: "{{ iserver_ssh_banner }}"
+      when: iserver_ssh_banner != "none"
 
-  - name: Enable ssh-host-keygen service that generates new SSH host keys on first boot.
-    service:
-      name: ssh-host-keygen
-      enabled: yes
-    when: enable_ssh_host_keygen is changed
+    - name: Restart SSH.
+      service:
+        name: ssh
+        state: restarted
+      when: restart_ssh is changed
+      tags:
+        - vanilla
 
-  - name: Create a file so that ssh-host-keygen.service will run once.
-    file:
-      path: /etc/run-ssh-host-keygen-once
-      state: touch
-    when: enable_ssh_host_keygen is changed
+    # SSH-HOST-KEYGEN (for KVM template)
+    - name: Copy systemd unitfile for OpenSSH Server Key Generation.
+      copy:
+        src: ssh-host-keygen.service
+        dest: /etc/systemd/system/ssh-host-keygen.service
+        mode: 0644
+      register: enable_ssh_host_keygen
+      when: iserver_is_template
 
-  ### CUSTOMIZE ###
-  - name: Set timezone.
-    timezone:
-      name: "{{ iserver_timezone }}"
-    tags:
-      - vanilla
+    - name: Enable ssh-host-keygen service that generates new SSH host keys on first boot.
+      service:
+        name: ssh-host-keygen
+        enabled: yes
+      when: enable_ssh_host_keygen is changed
 
-  - name: Move the original /etc/motd to back it up (once).
-    command: mv /etc/motd /etc/motd.original
-    args:
-      creates: /etc/motd.original
-    when: ansible_distribution == 'Debian'
+    - name: Create a file so that ssh-host-keygen.service will run once.
+      file:
+        path: /etc/run-ssh-host-keygen-once
+        state: touch
+      when: enable_ssh_host_keygen is changed
 
-  - name: Copy the file which will show a welcome motd after login.
-    copy:
-      src: 20-motd-welcome
-      dest: /etc/update-motd.d/20-motd-welcome
-      mode: a+x
-    when: ansible_distribution == 'Debian'
+    ### CUSTOMIZE ###
+    - name: Set timezone.
+      timezone:
+        name: "{{ iserver_timezone }}"
+      tags:
+        - vanilla
 
-  - name: Remove Ubuntu help-text from motd.
-    file:
-      path: /etc/update-motd.d/10-help-text
-      mode: a-x
-    when: ansible_distribution == 'Ubuntu'
+    - name: Move the original /etc/motd to back it up (once).
+      command: mv /etc/motd /etc/motd.original
+      args:
+        creates: /etc/motd.original
+      when: ansible_distribution == 'Debian'
 
-  - name: Remove Ubuntu livepatch notifications from motd.
-    file:
-      path: /etc/update-motd.d/80-livepatch
-      mode: a-x
-    when: ansible_distribution == 'Ubuntu'
+    - name: Copy the file which will show a welcome motd after login.
+      copy:
+        src: 20-motd-welcome
+        dest: /etc/update-motd.d/20-motd-welcome
+        mode: a+x
+      when: ansible_distribution == 'Debian'
 
-  - name: Remove Ubuntu ads from motd
-    lineinfile:
-      path: /etc/default/motd-news
-      state: present
-      regexp: '^ENABLED='
-      line: 'ENABLED=0'
-    when: ansible_distribution == 'Ubuntu'
+    - name: Remove Ubuntu help-text from motd.
+      file:
+        path: /etc/update-motd.d/10-help-text
+        mode: a-x
+      when: ansible_distribution == 'Ubuntu'
 
-  - name: Remove legal notice from Ubuntu user logins.
-    copy:
-      content: " "
-      dest: /etc/legal
-    when: ansible_distribution == 'Ubuntu'
+    - name: Remove Ubuntu livepatch notifications from motd.
+      file:
+        path: /etc/update-motd.d/80-livepatch
+        mode: a-x
+      when: ansible_distribution == 'Ubuntu'
 
-  - name: Copy the file which will show a verse via motd.
-    copy:
-      src: 85-motd-verse
-      dest: /etc/update-motd.d/85-motd-verse
-      mode: a+x
-    when: iserver_verse_enabled
+    - name: Remove Ubuntu ads from motd
+      lineinfile:
+        path: /etc/default/motd-news
+        state: present
+        regexp: "^ENABLED="
+        line: "ENABLED=0"
+      when: ansible_distribution == 'Ubuntu'
 
-  - name: Add a block of commands in the default user profile.
-    blockinfile:
-      path: "/home/{{ iserver_user }}/.profile"
-      block: |
-        {{ iserver_user_profile }}
-      marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    - name: Remove legal notice from Ubuntu user logins.
+      copy:
+        content: " "
+        dest: /etc/legal
+      when: ansible_distribution == 'Ubuntu'
 
-  - name: Add a block of bashrc config to root and the default user on Debian.
-    blockinfile:
-      path: "{{ item }}/.bashrc"
-      block: |
-        {{ iserver_bashrc_debian }}
-      marker: "# {mark} ANSIBLE MANAGED BLOCK"
-    loop: "{{ iserver_users_dirs }}"
-    when: ansible_distribution == 'Debian'
+    - name: Add a block of commands in the default user profile.
+      blockinfile:
+        path: "/home/{{ iserver_user }}/.profile"
+        block: |
+          {{ iserver_user_profile }}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
 
-  - name: Add a block of bashrc config to root and the default user on Ubuntu.
-    blockinfile:
-      path: "{{ item }}/.bashrc"
-      block: |
-        {{ iserver_bashrc_ubuntu }}
-      marker: "# {mark} ANSIBLE MANAGED BLOCK"
-    loop: "{{ iserver_users_dirs }}"
-    when: ansible_distribution == 'Ubuntu'
+    - name: Add a block of bashrc config to root and the default user on Debian.
+      blockinfile:
+        path: "{{ item }}/.bashrc"
+        block: |
+          {{ iserver_bashrc_debian }}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+      loop: "{{ iserver_users_dirs }}"
+      when: ansible_distribution == 'Debian'
 
-  - name: Customize default user bashrc - prompt is blue.
-    lineinfile:
-      path: /home/{{ iserver_user }}/.bashrc
-      line: 'export PS1="\[\033[1;34m\][\u@\h:\w]$\[\033[0m\] "'
+    - name: Add a block of bashrc config to root and the default user on Ubuntu.
+      blockinfile:
+        path: "{{ item }}/.bashrc"
+        block: |
+          {{ iserver_bashrc_ubuntu }}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+      loop: "{{ iserver_users_dirs }}"
+      when: ansible_distribution == 'Ubuntu'
 
-  - name: Customize root bashrc - prompt is red.
-    lineinfile:
-      path: /root/.bashrc
-      line: 'export PS1="\[\033[1;31m\][\u@\h:\w]#\[\033[0m\] "'
+    - name: Customize default user bashrc - prompt is blue.
+      lineinfile:
+        path: /home/{{ iserver_user }}/.bashrc
+        line: 'export PS1="\[\033[1;34m\][\u@\h:\w]$\[\033[0m\] "'
 
-  ### CLOUD ###
-  - name: Enable the serial console by modifying grub.
-    lineinfile:
-      path: /etc/default/grub
-      state: present
-      regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
-      line: 'GRUB_CMDLINE_LINUX_DEFAULT="console=ttyS0 console=tty0"'
-    register: update_grub
-    tags:
-      - vanilla
+    - name: Customize root bashrc - prompt is red.
+      lineinfile:
+        path: /root/.bashrc
+        line: 'export PS1="\[\033[1;31m\][\u@\h:\w]#\[\033[0m\] "'
 
-  - name: Update grub.
-    command: update-grub
-    when: update_grub is changed
-    tags:
-      - vanilla
+    ### CLOUD ###
+    - name: Enable the serial console by modifying grub.
+      lineinfile:
+        path: /etc/default/grub
+        state: present
+        regexp: "^GRUB_CMDLINE_LINUX_DEFAULT="
+        line: 'GRUB_CMDLINE_LINUX_DEFAULT="console=ttyS0 console=tty0"'
+      register: update_grub
+      tags:
+        - vanilla
 
-  - include_tasks: swapfile-ubuntu.yml
-    when: ansible_distribution == 'Ubuntu'
+    - name: Update grub.
+      command: update-grub
+      when: update_grub is changed
+      tags:
+        - vanilla
 
-  # GROW PARTITION
-  - name: Copy systemd unitfile to automatically Grow Partition after resize by Proxmox.
-    copy:
-      src: autogrowpart.service
-      dest: /etc/systemd/system/autogrowpart.service
-      mode: 0644
-    register: enable_autogrowpart
+    - include_tasks: swapfile-ubuntu.yml
+      when: ansible_distribution == 'Ubuntu'
 
-  - name: Copy script to automatically Grow Partition after resize by Proxmox.
-    copy:
-      src: auto_grow_partition.sh
-      dest: /usr/local/bin/auto_grow_partition.sh
-      mode: a+x
+    # GROW PARTITION
+    - name: Copy systemd unitfile to automatically Grow Partition after resize by Proxmox.
+      copy:
+        src: autogrowpart.service
+        dest: /etc/systemd/system/autogrowpart.service
+        mode: 0644
+      register: enable_autogrowpart
 
-  - name: Enable the autogrowpart service.
-    service:
-      name: autogrowpart
-      enabled: yes
-    when: enable_autogrowpart is changed
+    - name: Copy script to automatically Grow Partition after resize by Proxmox.
+      copy:
+        src: auto_grow_partition.sh
+        dest: /usr/local/bin/auto_grow_partition.sh
+        mode: a+x
 
-  ### CLEANUP ###
-  # about 400MB on an Ubuntu image - @jarno https://askubuntu.com/a/620515/831854
-  - name: Regitering previous kernel versions to be removed.
-    shell: dpkg-query -W -f'${Package}\n' 'linux-*' | sed -nr 's/.*-([0-9]+(\.[0-9]+){2}-[^-]+).*/\1 &/p' | sort -k 1,1V | awk '($1==c){exit} {print $2}' c=$(uname -r | cut -f1,2 -d-)
-    register: old_kernel_packages
-    changed_when: false
+    - name: Enable the autogrowpart service.
+      service:
+        name: autogrowpart
+        enabled: yes
+      when: enable_autogrowpart is changed
 
-  - name: Remove packages of previous kernel versions.
-    apt:
-      name: "{{ old_kernel_packages.stdout }}"
-      state: absent
-      purge: yes
-      autoremove: yes
+    ### CLEANUP ###
+    # about 400MB on an Ubuntu image - @jarno https://askubuntu.com/a/620515/831854
+    - name: Regitering previous kernel versions to be removed.
+      shell: dpkg-query -W -f'${Package}\n' 'linux-*' | sed -nr 's/.*-([0-9]+(\.[0-9]+){2}-[^-]+).*/\1 &/p' | sort -k 1,1V | awk '($1==c){exit} {print $2}' c=$(uname -r | cut -f1,2 -d-)
+      register: old_kernel_packages
+      changed_when: false
 
-  - name: Copy the cleanup script.
-    template:
-      src: template-cleanup.sh.j2
-      dest: /tmp/template-cleanup.sh
-      mode: a+x
-    when: iserver_is_template
-    tags:
-      - vanilla
+    - name: Remove packages of previous kernel versions.
+      apt:
+        name: "{{ old_kernel_packages.stdout }}"
+        state: absent
+        purge: yes
+        autoremove: yes
 
-  - name: Run the cleanup script for VM templates (only once).
-    shell: /tmp/template-cleanup.sh
-    args:
-      creates: /etc/.template-cleanup.done
-    when: iserver_is_template
-    tags:
-      - vanilla
+    - name: Copy the cleanup script.
+      template:
+        src: template-cleanup.sh.j2
+        dest: /tmp/template-cleanup.sh
+        mode: a+x
+      when: iserver_is_template
+      tags:
+        - vanilla
 
-  # or use '*'
-  - name: Prevent password authentication for root.
-    user:
-      name: root
-      password: '!'
-    tags:
-      - vanilla
+    - name: Run the cleanup script for VM templates (only once).
+      shell: /tmp/template-cleanup.sh
+      args:
+        creates: /etc/.template-cleanup.done
+      when: iserver_is_template
+      tags:
+        - vanilla
+
+    # or use '*'
+    - name: Prevent password authentication for root.
+      user:
+        name: root
+        password: "!"
+      tags:
+        - vanilla
   ## End of block MAIN
   become: true

@@ -9,7 +9,7 @@ iserver_become: sudo ## do not chanage this ##
 
 ### BASE PACKAGES ###
 iserver_repos:
-   - undefined
+  - undefined
   ## Debian 10 buster example
   # - deb http://repo.myloc.de/debian buster main non-free contrib
   # - deb-src http://repo.myloc.de/debian buster main non-free contrib
@@ -17,7 +17,6 @@ iserver_repos:
   # - deb-src http://security.debian.org/debian-security buster/updates main contrib non-free
   # - deb http://deb.debian.org/debian buster-updates main contrib non-free
   # - deb-src http://deb.debian.org/debian buster-updates main contrib non-free
-
   ## Ubuntu 18.04 example
   # - deb http://repo.myloc.de/ubuntu/ bionic main restricted universe multiverse
   # - deb-src http://repo.myloc.de/ubuntu/ bionic main restricted universe multiverse
@@ -30,10 +29,9 @@ iserver_repos:
 
 # packages we want on every server
 iserver_packages:
-  - qemu-guest-agent  # needed by packer
-  - haveged           # prevent vm boot delays
+  - qemu-guest-agent # needed by packer
+  - haveged # prevent vm boot delays
   - cloud-guest-utils # used by growpart
-  - verse             # used in motd (optional)
   - curl
   - psmisc
   - net-tools
@@ -59,7 +57,7 @@ iserver_host_main_ip: 127.1.1.1
 # - or use a fixed routed external IP for servers
 # - which will also go into and 'interfaces' or 'netplan'
 iserver_ip: 127.0.1.1
-iserver_nameservers: 1.1.1.1,8.8.8.8
+iserver_nameservers: 10.100.0.1
 
 ### SSH ###
 iserver_ssh_port: 22
